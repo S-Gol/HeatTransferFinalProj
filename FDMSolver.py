@@ -1,9 +1,31 @@
 import cv2
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
+
 drawing = False # true if mouse is pressed
 mode = True # if True, draw rectangle. Press 'm' to toggle to curve
 ix,iy = -1,-1
+
+def GS(a,x,b): #Gauss-Seidel iteration function for the equation a*x=b
+    n = len(a)
+    
+    for j in range(0,n):
+        v=b[j]
+        
+        for i in range(0,n):
+            if(j!=i):
+                v-=a[i,j]*x[i]
+        x[j]=v/a[j,j]
+    return x
+def linToSq(a, stride): #Convert the 1-D array from the Gauss-Seidel solution into a 2-d array, for image use
+    height = int(len(a)/stride)
+    print(str(stride)+" by "+ str(height))
+    n = np.zeros([stride, height])
+    for x in range(0, stride):
+        for y in range (0, height):
+            n[x,y]=a[getN(x,y,stride)]
+    return n
 
 def getColor(i):
     value = px.colors.cyclical.Twilight[i].lstrip('#')
@@ -23,25 +45,17 @@ def subdivideGrid(n, grid):
                         ret[x*nSub+i, y*nSub+j]=grid[x,y]
         return ret
     else:
-        return grid
+        ret = np.zeros((grid.shape[0], grid.shape[1]))
+        for x in range(0,grid.shape[0]):
+            for y in range(0,grid.shape[1]):
+                ret[x, y]=grid[x,y]
+        return ret
 
-class material:
-    k = float(0)
-    rho = float(0)
-
-    def __init__(self, _k, _rho):
-        k = _k
-        rho = _rho
-class bound:
-    tinf = float(0)
-    h = float(0)
-
-    def __init__(self, _h, _tinf):
-        h = _h
-        tinf = _tinf
 #Arrays for boundary and material values
-materials = []
-boundaries = []
+#materials = []
+rValues=[]
+bRValues=[]
+boundaryTypes = []
 #User defined inputs
 dx = float(input("Enter the spatial step, in unit length: "))
 nx = int(input("Enter the number of horizontal cells: "))
@@ -59,11 +73,11 @@ currentB = 1
 for m in range(0, numMat):
     rho = float(input("Enter the density of material {0}, unit mass / unit volume: ".format(str(m))))
     k  = float(input("Enter the conductivity of material {0}: ".format(str(m))))
-    materials.append(material(k,rho))
+    rValues.append(1/k)
 for b in range(0, numBounds):
     h = float(input("Enter the convective coefficient of boundary {0}: ".format(str(b))))
     t_inf  = float(input("Enter the t-infinity of boundary {0}: ".format(str(b))))
-    boundaries.append(bound(h,t_inf))
+    bRValues.append(dx*t_inf/h)
 #Get user input for the initial state
 #mouse callback function
 def drawCell(event,x,y,flags,param):
@@ -101,6 +115,7 @@ cv2.destroyAllWindows()
 cells = subdivideGrid(nSub, cells)
 #Pad array for boundary conditions
 cells = np.pad(cells, (1,1), 'constant', constant_values=(0,0))
+print(cells.shape)
 boundaries = np.zeros(cells.shape)
 img=cv2.resize(img,(img.shape[1]*nSub,img.shape[0]*nSub), interpolation=cv2.INTER_AREA)
 img=cv2.copyMakeBorder(img,1,1,1,1,cv2.BORDER_CONSTANT)
@@ -139,10 +154,57 @@ while(1):
         break
 #User finished, clear windows
 cv2.destroyAllWindows()
-
 print("System initialized with size of " + str(cells.shape))
-fig = px.imshow(boundaries)
-fig.show()
-fig = px.imshow(cells)
-fig.show()
 
+#Generate equations
+nodes = cells.shape[0]*cells.shape[1]
+#Matrix of T's coefficients 
+eqnArray = np.zeros([nodes,nodes])
+#Matrix of constants to set the other matrix equal to 
+bArray = np.zeros(nodes)
+#4 directions to iterate when solving
+offsets = [(1,0),(-1,0),(0,1),(0,-1)]
+#Set the T-array to a default value
+T=np.full(nodes,1000)
+
+def getN(x,y, stride=cells.shape[0]):
+    return int(x+y*stride)
+shape = cells.shape
+cells = cells.astype(int)
+boundaries = boundaries.astype(int)
+
+#Set up matrix in preparation for gauss-siedel
+for y in np.arange(0,shape[1]):
+    for x in np.arange(0,shape[0]):
+        n=getN(x,y)
+        # T is not known at this point
+        #Sum(Q)=Sum(dT/R)=0
+        #Add this equation to the matrix for each node
+        #If the cell is valid
+        if cells[x,y]!=0:
+            for d in offsets:
+                nX = int(x + d[0])
+                nY = int(y + d[1])
+                if nX >= 0 and nX < shape[0] and nY >= 0 and nY < shape[1]:
+                    if cells[nX, nY] != 0:
+                        r=rValues[cells[x,y]-1]+rValues[cells[nX,nY]-1]
+                        eqnArray[n,n]+=1.00/r
+                        eqnArray[getN(nX, nY),n]-= 1.00/r
+                    else:
+                        #If it's not a cell, it has to be a boundary
+                        if boundaries[nX,nY]!=0:
+                            #non-adiabiatic, so it must transfer heat convectively
+                            bArray[n]+=bRValues[boundaries[nX,nY]-1]
+        else:
+            eqnArray[n,n]=1
+            bArray[n]=0
+
+
+#Apply the gauss-seidel iteration 
+nGS=50
+for i in range(0,nGS):
+    print ("\r"+str(100*i/nGS)+"%,", end='', flush=True)
+    x = GS(eqnArray, T, bArray)
+t=linToSq(x,shape[0])
+fig = go.Figure(data = go.Contour(z=t))
+fig.show()
