@@ -165,7 +165,7 @@ bArray = np.zeros(nodes)
 #4 directions to iterate when solving
 offsets = [(1,0),(-1,0),(0,1),(0,-1)]
 #Set the T-array to a default value
-T=np.full(nodes,1000)
+T=np.full(nodes,0)
 
 def getN(x,y, stride=cells.shape[0]):
     return int(x+y*stride)
@@ -201,7 +201,7 @@ for y in np.arange(0,shape[1]):
 
 
 #Apply the gauss-seidel iteration 
-nGS=50
+nGS=100
 for i in range(0,nGS):
     print ("\r"+str(100*i/nGS)+"%,", end='', flush=True)
     x = GS(eqnArray, T, bArray)
