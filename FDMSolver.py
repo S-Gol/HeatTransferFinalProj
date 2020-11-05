@@ -2,11 +2,12 @@ import cv2
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from scipy import sparse
+from scipy.sparse.linalg import spsolve
+
 
 drawing = False # true if mouse is pressed
-mode = True # if True, draw rectangle. Press 'm' to toggle to curve
 ix,iy = -1,-1
-
 def GS(a,x,b): #Gauss-Seidel iteration function for the equation a*x=b
     n = len(a)
     
@@ -27,15 +28,15 @@ def linToSq(a, stride): #Convert the 1-D array from the Gauss-Seidel solution in
             n[x,y]=a[getN(x,y,stride)]
     return n
 
-def getColor(i):
+def getColor(i): #Get the color gradient for a material
     value = px.colors.cyclical.Twilight[i].lstrip('#')
     lv = len(value)
     return tuple(int(value[i:i+lv//3], 16) for i in range(0, lv, lv//3)) 
-def getColorB(i):
+def getColorB(i): #Get the color gradient for a boundary
     value = px.colors.cyclical.IceFire[i].lstrip('#')
     lv = len(value)
     return tuple(int(value[i:i+lv//3], 16) for i in range(0, lv, lv//3)) 
-def subdivideGrid(n, grid):
+def subdivideGrid(n, grid): #Subidivide the grid into n*n squares per original square
     if n>1:
         ret = np.zeros((grid.shape[0]*n, grid.shape[1]*n))
         for x in range(0,grid.shape[0]):
@@ -55,7 +56,7 @@ def subdivideGrid(n, grid):
 #materials = []
 rValues=[]
 bRValues=[]
-boundaryTypes = []
+bTValues=[]
 #User defined inputs
 dx = float(input("Enter the spatial step, in unit length: "))
 nx = int(input("Enter the number of horizontal cells: "))
@@ -77,7 +78,8 @@ for m in range(0, numMat):
 for b in range(0, numBounds):
     h = float(input("Enter the convective coefficient of boundary {0}: ".format(str(b))))
     t_inf  = float(input("Enter the t-infinity of boundary {0}: ".format(str(b))))
-    bRValues.append(dx*t_inf/h)
+    bRValues.append(dx/h)
+    bTValues.append(t_inf)
 #Get user input for the initial state
 #mouse callback function
 def drawCell(event,x,y,flags,param):
@@ -119,9 +121,8 @@ print(cells.shape)
 boundaries = np.zeros(cells.shape)
 img=cv2.resize(img,(img.shape[1]*nSub,img.shape[0]*nSub), interpolation=cv2.INTER_AREA)
 img=cv2.copyMakeBorder(img,1,1,1,1,cv2.BORDER_CONSTANT)
+#Event callback to draw boundaries
 def drawBound(event,x,y,flags,param):
-
-
     global ix,iy,drawing,mode
     if event == cv2.EVENT_LBUTTONDOWN:
         drawing = True
@@ -165,8 +166,8 @@ bArray = np.zeros(nodes)
 #4 directions to iterate when solving
 offsets = [(1,0),(-1,0),(0,1),(0,-1)]
 #Set the T-array to a default value
-T=np.full(nodes,0)
-
+T=np.full(nodes,1000)
+#Get the 1-d index of a point from the 2-d position
 def getN(x,y, stride=cells.shape[0]):
     return int(x+y*stride)
 shape = cells.shape
@@ -185,26 +186,30 @@ for y in np.arange(0,shape[1]):
             for d in offsets:
                 nX = int(x + d[0])
                 nY = int(y + d[1])
-                if nX >= 0 and nX < shape[0] and nY >= 0 and nY < shape[1]:
-                    if cells[nX, nY] != 0:
+                if cells[nX, nY] != 0:
+                    r=rValues[cells[x,y]-1]+rValues[cells[nX,nY]-1]
+                    eqnArray[n,n]+=float(1.00/r)
+                    eqnArray[getN(nX, nY),n] = float(-1.00/r)
+                else:
+                    #If it's not a cell, it has to be a boundary
+                    if boundaries[nX,nY]!=0:
+                        #non-adiabiatic, so it must transfer heat convectively
                         r=rValues[cells[x,y]-1]+rValues[cells[nX,nY]-1]
-                        eqnArray[n,n]+=1.00/r
-                        eqnArray[getN(nX, nY),n]-= 1.00/r
-                    else:
-                        #If it's not a cell, it has to be a boundary
-                        if boundaries[nX,nY]!=0:
-                            #non-adiabiatic, so it must transfer heat convectively
-                            bArray[n]+=bRValues[boundaries[nX,nY]-1]
+                        eqnArray[n,n]+=float(1.00/r)
+                        eqnArray[getN(nX, nY),n] = float(-1.00/r)
         else:
             eqnArray[n,n]=1
-            bArray[n]=0
+            if boundaries[x,y] != 1:
+                bArray[n] = bTValues[boundaries[x,y]-1]
 
 
-#Apply the gauss-seidel iteration 
-nGS=100
+#Apply the gauss-seidel iteration
+nGS=50
 for i in range(0,nGS):
     print ("\r"+str(100*i/nGS)+"%,", end='', flush=True)
-    x = GS(eqnArray, T, bArray)
-t=linToSq(x,shape[0])
+    T = GS(eqnArray, T, bArray)
+
+
+t=linToSq(T,shape[0])
 fig = go.Figure(data = go.Contour(z=t))
 fig.show()
