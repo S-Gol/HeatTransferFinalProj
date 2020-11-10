@@ -72,7 +72,7 @@ if not(loadFile):
 
     #Prompt input for materials
     for m in range(0, numMat):
-        rho = float(input("Enter the density of material {0}, unit mass / unit volume: ".format(str(m))))
+        #rho = float(input("Enter the density of material {0}, unit mass / unit volume: ".format(str(m))))
         k  = float(input("Enter the conductivity of material {0}: ".format(str(m))))
         rValues.append(1/k)
     for b in range(0, numBounds):
