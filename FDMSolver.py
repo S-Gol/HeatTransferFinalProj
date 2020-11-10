@@ -2,9 +2,10 @@ import cv2
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import scipy.sparse
+import scipy.sparse.linalg
 
-import base64
-
+useGS = False
 drawing = False # true if mouse is pressed
 ix,iy = -1,-1
 def GS(a,x,b): #Gauss-Seidel iteration function for the equation a*x=b
@@ -277,16 +278,19 @@ for y in np.arange(0,shape[1]):
                         eqnArray[getN(nX, nY),n] = float(-1.00/r)
         else:
             eqnArray[n,n]=1
-            if boundaries[x,y] != 1:
+            if boundaries[x,y] != 0:
                 bArray[n] = bTValues[boundaries[x,y]-1]
 
-
-#Apply the gauss-seidel iteration
-nGS=50
-for i in range(0,nGS):
-    print ("\r"+str(100*i/nGS)+"%,", end='', flush=True)
-    T = GS(eqnArray, T, bArray)
-
+if useGS:
+    #Apply the gauss-seidel iteration
+    nGS=50
+    for i in range(0,nGS):
+        print ("\r"+str(100*i/nGS)+"%,", end='', flush=True)
+        T = GS(eqnArray, T, bArray)
+else:
+    #T=np.linalg.solve(np.transpose(eqnArray), bArray)
+    a=scipy.sparse.csr_matrix(np.transpose(eqnArray))
+    T=scipy.sparse.linalg.spsolve(a, bArray)
 t=linToSq(T,shape[0])
 fig = go.Figure(data = go.Contour(z=t))
 fig.show()
