@@ -60,8 +60,8 @@ loadFile = input("Would you like to load a config? y/n ")
 loadFile = loadFile=="y"
 if not(loadFile):
     dx = float(input("Enter the spatial step, in unit length: "))
-    nx = int(input("Enter the number of horizontal cells: "))
-    ny = int(input("Enter the number of vertical cells: "))
+    nx = int(input("Enter the number of vertical cells: "))
+    ny = int(input("Enter the number of horizontal cells: "))
     numMat = int(input("Enter the number of materials present: "))
     numBounds = int(input("Enter the number of convective boundaries present: "))
     nSub = int(input("Enter number of desired subdivisions: "))
