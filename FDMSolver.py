@@ -121,6 +121,8 @@ if not(loadFile):
     boundaries = np.zeros(cells.shape)
     img=cv2.resize(img,(img.shape[1]*nSub,img.shape[0]*nSub), interpolation=cv2.INTER_AREA)
     img=cv2.copyMakeBorder(img,1,1,1,1,cv2.BORDER_CONSTANT)
+    nx*=nSub
+    ny*=nSub
     nx+=2
     ny+=2
     #Event callback to draw boundaries
@@ -304,6 +306,9 @@ for y in np.arange(0,shape[1]):
     for x in np.arange(0,shape[0]):
         q[x,y]=dtdy[x,y]/rValues[cells[x,y]-1]*dx
 print("Q= "+str(np.sum(q)))
+
+
+
 
 fig = go.Figure(data = go.Contour(z=t))
 fig.show()
