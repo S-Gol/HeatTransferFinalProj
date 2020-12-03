@@ -121,6 +121,8 @@ if not(loadFile):
     boundaries = np.zeros(cells.shape)
     img=cv2.resize(img,(img.shape[1]*nSub,img.shape[0]*nSub), interpolation=cv2.INTER_AREA)
     img=cv2.copyMakeBorder(img,1,1,1,1,cv2.BORDER_CONSTANT)
+    nx+=2
+    ny+=2
     #Event callback to draw boundaries
     def drawBound(event,x,y,flags,param):
         global ix,iy,drawing,mode
@@ -157,8 +159,8 @@ if not(loadFile):
     cv2.destroyAllWindows()
 else:
     #Read from the config file
-    path = input("Enter file path. Full folder and file name: ")
-
+    #path = input("Enter file path. Full folder and file name: ")
+    path = "d:/github/fixed.txt"
     file = open(path, "r")
 
     dx = float(file.readline().split("#")[0])
@@ -193,7 +195,6 @@ else:
         strings = string.split()
         for x in np.arange(0,len(strings)):
             boundaries[x,y]=int(strings[x])
-    print(rValues)
 
 
 print("System initialized with size of " + str(cells.shape))
@@ -292,5 +293,20 @@ else:
     a=scipy.sparse.csr_matrix(np.transpose(eqnArray))
     T=scipy.sparse.linalg.spsolve(a, bArray)
 t=linToSq(T,shape[0])
+
+dtdy = np.zeros([nx,ny])
+for y in np.arange(1, nx):
+    dtdy[y,:]=(t[y,:]-t[y-1,:])
+
+
+q=np.zeros([nx,ny])
+for y in np.arange(0,shape[1]):
+    for x in np.arange(0,shape[0]):
+        q[x,y]=dtdy[x,y]/rValues[cells[x,y]-1]*dx
+print("Q= "+str(np.sum(q)))
+
 fig = go.Figure(data = go.Contour(z=t))
 fig.show()
+fig = go.Figure(data = go.Contour(z=q))
+fig.show()
+
