@@ -16,7 +16,7 @@
  
  At this point, the script will convert your input into the appropriate matrix functions and use Numpy's sparse matrix methods to solve the equation. Optionally, change the variable UseGS to "True" to use the slower Gauss-Seidel implementation for demonstration purposes. 
  
-##Results
+ ## Results
 
 ![Example drawn input](https://github.com/S-Gol/PyFDM/blob/main/Images/Picture1.png)
 ![Temperatures](https://github.com/S-Gol/PyFDM/blob/main/Images/Picture2.png)
