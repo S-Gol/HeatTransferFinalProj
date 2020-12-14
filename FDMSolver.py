@@ -8,6 +8,7 @@ import scipy.sparse.linalg
 useGS = False
 drawing = False # true if mouse is pressed
 ix,iy = -1,-1
+
 def GS(a,x,b): #Gauss-Seidel iteration function for the equation a*x=b
     n = len(a)
     
@@ -161,8 +162,8 @@ if not(loadFile):
     cv2.destroyAllWindows()
 else:
     #Read from the config file
-    #path = input("Enter file path. Full folder and file name: ")
-    path = "d:/github/fixed.txt"
+    path = input("Enter file path. Full folder and file name: ")
+    #path = "d:/github/fixed.txt"
     file = open(path, "r")
 
     dx = float(file.readline().split("#")[0])
