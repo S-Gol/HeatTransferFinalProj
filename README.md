@@ -10,7 +10,7 @@
  
  Exit the window when done
  
- Draw the boundaries in the OpenCV window, usinb B to toggle materials
+ Draw the boundaries in the OpenCV window, using B to toggle boundaries
  
  Exit the window when done
  
